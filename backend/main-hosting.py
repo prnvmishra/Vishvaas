@@ -60,14 +60,22 @@ async def analyze_offer_lightweight(text: str, filename: str) -> dict:
     else:
         risk_level = "High Risk"
     
+    # Extract actual company name (simple regex)
+    company_match = re.search(r'(?:offer from|at|joining)\s+([A-Z][a-zA-Z\s&\.\-]+)', text, re.IGNORECASE)
+    company = company_match.group(1).strip() if company_match else "Unknown Company"
+    
+    # Extract actual role
+    role_match = re.search(r'(?:role of|position)\s+([A-Za-z\s]+)', text, re.IGNORECASE)
+    role = role_match.group(1).strip() if role_match else "Unknown Role"
+    
     return {
         "score": risk_score,
         "risk_level": risk_level,
         "extracted_data": {
-            "company_name": "Sample Company",
+            "company_name": company,
             "hr_email": email,
             "salary": salary,
-            "role": "Sample Role",
+            "role": role,
             "website": ""
         },
         "reasons": reasons,
