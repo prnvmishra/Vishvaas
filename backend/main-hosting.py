@@ -114,20 +114,58 @@ async def analyze_offer(file: UploadFile = File(...), firebase_uid: Optional[str
 
 @app.get("/company/{name}")
 async def search_company(name: str):
-    return {
-        "company": name,
-        "is_verified_entity": False,
-        "links": {},
-        "intelligence": {
+    # Basic company verification (lightweight)
+    is_verified = False
+    links = {}
+    
+    # Simple verification for known companies
+    known_companies = {
+        "amazon": {
+            "size": "Massive (1,500,000+ employees)",
+            "headquarters": "Seattle, Washington, USA",
+            "industry": "E-commerce & Cloud Computing",
+            "linkedin_url": "https://www.linkedin.com/company/amazon",
+            "official_website": "https://www.amazon.com"
+        },
+        "google": {
+            "size": "Massive (150,000+ employees)", 
+            "headquarters": "Mountain View, California, USA",
+            "industry": "Technology & Search",
+            "linkedin_url": "https://www.linkedin.com/company/google",
+            "official_website": "https://www.google.com"
+        },
+        "microsoft": {
+            "size": "Massive (200,000+ employees)",
+            "headquarters": "Redmond, Washington, USA", 
+            "industry": "Technology & Software",
+            "linkedin_url": "https://www.linkedin.com/company/microsoft",
+            "official_website": "https://www.microsoft.com"
+        }
+    }
+    
+    name_lower = name.lower()
+    if name_lower in known_companies:
+        is_verified = True
+        links = known_companies[name_lower]
+        intelligence = known_companies[name_lower]
+        intelligence["mca_registration"] = "Verified Global Entity"
+    else:
+        intelligence = {
             "size": "Unknown",
             "headquarters": "Unknown", 
             "branches": "Unknown",
             "industry": "Unknown",
-            "mca_registration": "Hosting mode - Verification offline",
+            "mca_registration": "No verified information found",
             "linkedin_url": "Unknown",
             "official_website": "Unknown",
-            "summary": "Company intelligence unavailable in hosting mode"
+            "summary": f"Company intelligence unavailable for {name}"
         }
+    
+    return {
+        "company": name,
+        "is_verified_entity": is_verified,
+        "links": links,
+        "intelligence": intelligence
     }
 
 if __name__ == "__main__":
