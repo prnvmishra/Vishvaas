@@ -57,10 +57,12 @@ def parse_document_lightweight(text: str, filename: str) -> str:
 
 # Lightweight analysis without heavy ML models
 async def analyze_offer_lightweight(text: str, filename: str) -> dict:
-    """Simplified analysis for hosting"""
+    """Simplified analysis for hosting with OpenRouter integration"""
     
     # Basic regex extraction
     import re
+    import httpx
+    import os
     
     email_match = re.search(r'[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+', text)
     email = email_match.group(0) if email_match else ""
@@ -84,13 +86,6 @@ async def analyze_offer_lightweight(text: str, filename: str) -> dict:
         risk_score += 40
         reasons.append("Suspicious phrases detected")
     
-    if risk_score < 40:
-        risk_level = "Low Risk"
-    elif risk_score < 70:
-        risk_level = "Medium Risk"
-    else:
-        risk_level = "High Risk"
-    
     # Extract actual company name (simple regex)
     company_match = re.search(r'(?:offer from|at|joining)\s+([A-Z][a-zA-Z\s&\.\-]+)', text, re.IGNORECASE)
     company = company_match.group(1).strip() if company_match else "Unknown Company"
@@ -98,6 +93,49 @@ async def analyze_offer_lightweight(text: str, filename: str) -> dict:
     # Extract actual role
     role_match = re.search(r'(?:role of|position)\s+([A-Za-z\s]+)', text, re.IGNORECASE)
     role = role_match.group(1).strip() if role_match else "Unknown Role"
+    
+    # OpenRouter AI Analysis
+    llm_analysis = "Basic analysis - AI unavailable"
+    try:
+        openrouter_key = os.getenv("OPENROUTER_API_KEY")
+        if openrouter_key and len(text.strip()) > 20:
+            async with httpx.AsyncClient() as client:
+                response = await client.post(
+                    "https://openrouter.ai/api/v1/chat/completions",
+                    headers={
+                        "Authorization": f"Bearer {openrouter_key}",
+                        "Content-Type": "application/json"
+                    },
+                    json={
+                        "model": "openai/gpt-3.5-turbo",
+                        "messages": [
+                            {
+                                "role": "user", 
+                                "content": f"Analyze this job offer for legitimacy and extract key details:\n\n{text[:1000]}\n\nReturn JSON with: risk_score (0-100), company_name, role, salary, is_legitimate, concerns"
+                            }
+                        ]
+                    }
+                )
+                
+                if response.status_code == 200:
+                    ai_result = response.json()
+                    llm_analysis = ai_result["choices"][0]["message"]["content"]
+                    
+                    # Update risk score based on AI analysis
+                    if "high risk" in llm_analysis.lower():
+                        risk_score = max(risk_score, 70)
+                    elif "medium risk" in llm_analysis.lower():
+                        risk_score = max(risk_score, 40)
+    except Exception as e:
+        print(f"OpenRouter error: {e}")
+        llm_analysis = "AI analysis failed - using basic rules"
+    
+    if risk_score < 40:
+        risk_level = "Low Risk"
+    elif risk_score < 70:
+        risk_level = "Medium Risk"
+    else:
+        risk_level = "High Risk"
     
     return {
         "score": risk_score,
@@ -111,7 +149,7 @@ async def analyze_offer_lightweight(text: str, filename: str) -> dict:
         },
         "reasons": reasons,
         "raw_text": text[:200] + "..." if len(text) > 200 else text,
-        "llm_analysis": "Hosting optimized analysis - Limited functionality",
+        "llm_analysis": llm_analysis,
         "verified_links": {},
         "ipqs_intel": None,
         "linkedin_jobs": None
