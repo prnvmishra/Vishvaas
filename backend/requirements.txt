@@ -1,18 +1,18 @@
-# Lightweight requirements for hosting
 fastapi
 uvicorn[standard]
+pymupdf
+pytesseract
+Pillow
+openai
 python-multipart
 python-dotenv
 pydantic
-httpx
+sqlalchemy
 wikipedia
-# Add lightweight PDF processing
+pdfplumber
+opencv-python-headless
+googlesearch-python
+duckduckgo-search
+spacy
+httpx
 pypdf2
-# Remove heavy dependencies for hosting
-# opencv-python-headless
-# pytesseract  
-# pymupdf
-# pdfplumber
-# spacy
-# googlesearch-python
-# duckduckgo-search
