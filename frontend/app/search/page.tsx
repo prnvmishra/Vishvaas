@@ -3,6 +3,8 @@ import React, { useState } from 'react';
 import axios from 'axios';
 import { Search, Building, ShieldAlert, AlertTriangle, Briefcase, MapPin, Globe } from 'lucide-react';
 import RiskGauge from '@/components/RiskGauge';
+import { ref, get } from 'firebase/database';
+import { db } from '@/lib/firebase';
 
 export default function SearchCompany() {
    const [query, setQuery] = useState('');
@@ -15,7 +17,42 @@ export default function SearchCompany() {
       setLoading(true);
       try {
          const res = await axios.get(`http://localhost:8000/company/${encodeURIComponent(query)}`);
-         setResult(res.data);
+         const data = res.data;
+
+         // Cross-reference community flags from Firebase
+         const scamSnap = await get(ref(db, 'scam_reports'));
+         let communityCount = 0;
+         const matchedReports: any[] = [];
+         if (scamSnap.exists()) {
+            const allReports = Object.values(scamSnap.val()) as any[];
+            allReports.forEach((r: any) => {
+               if (r.company_name && r.company_name.toLowerCase().includes(query.toLowerCase())) {
+                  communityCount++;
+                  matchedReports.push(r);
+               }
+            });
+         }
+
+         // Also cross-reference AI reports from Firebase
+         const reportsSnap = await get(ref(db, 'reports'));
+         let totalScans = 0;
+         let totalScore = 0;
+         if (reportsSnap.exists()) {
+            const allAnalysis = Object.values(reportsSnap.val()) as any[];
+            allAnalysis.forEach((r: any) => {
+               if (r.company_name && r.company_name.toLowerCase().includes(query.toLowerCase())) {
+                  totalScans++;
+                  totalScore += (r.score || 0);
+               }
+            });
+         }
+
+         data.community_reports_count = communityCount;
+         data.reports = matchedReports.sort((a: any, b: any) => (b.timestamp || 0) - (a.timestamp || 0));
+         data.past_scans = totalScans;
+         data.average_risk_score = totalScans > 0 ? Math.round(totalScore / totalScans) : (data.average_risk_score || 0);
+
+         setResult(data);
       } catch (e) {
          console.error(e);
       }
@@ -140,7 +177,17 @@ export default function SearchCompany() {
                         </span>
                     </div>
                     {result.community_reports_count > 0 && (
-                        <p className="text-xs text-red-400 mt-4">Warning: This entity has actively reported scams.</p>
+                        <div className="mt-4 text-left w-full">
+                           <p className="text-xs font-semibold text-red-500 mb-3 text-center uppercase tracking-wider">Warning: {result.community_reports_count} {result.community_reports_count === 1 ? 'person' : 'people'} flagged this company.</p>
+                           <div className="space-y-2 max-h-32 overflow-y-auto pr-2 custom-scrollbar">
+                               {result.reports?.map((r: any, idx: number) => (
+                                   <div key={idx} className="p-2.5 bg-red-950/30 border-l-2 border-red-500 rounded-r-lg">
+                                       <p className="text-[11px] text-slate-400 mb-1">{r.timestamp ? new Date(r.timestamp).toLocaleDateString() : 'Recent'}</p>
+                                       <p className="text-xs text-slate-200 italic leading-relaxed">"{r.description || 'Reported as a scam operation.'}"</p>
+                                   </div>
+                               ))}
+                           </div>
+                        </div>
                     )}
                  </div>
              </div>

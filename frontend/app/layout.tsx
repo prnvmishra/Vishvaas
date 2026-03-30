@@ -18,6 +18,8 @@ export const metadata: Metadata = {
 };
 
 import Navbar from "@/components/Navbar";
+import { AuthProvider } from "@/context/AuthContext";
+import { ThemeProvider } from "@/components/ThemeProvider";
 
 export default function RootLayout({
   children,
@@ -28,10 +30,15 @@ export default function RootLayout({
     <html
       lang="en"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      suppressHydrationWarning
     >
-      <body className="min-h-full flex flex-col">
-        <Navbar />
-        {children}
+      <body className="min-h-full flex flex-col bg-slate-950 dark:bg-slate-950 transition-colors text-slate-900 dark:text-white">
+        <ThemeProvider attribute="class" defaultTheme="dark" enableSystem={false}>
+          <AuthProvider>
+            <Navbar />
+            {children}
+          </AuthProvider>
+        </ThemeProvider>
       </body>
     </html>
   );

@@ -1,22 +1,35 @@
 "use client";
 import React, { useEffect, useState } from 'react';
-import axios from 'axios';
 import { Users, AlertCircle, Calendar } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
+import { useAuth } from '@/context/AuthContext';
+import { ref, push, set, get, query, orderByChild, limitToLast, runTransaction } from 'firebase/database';
+import { db } from '@/lib/firebase';
 
 export default function CommunityReports() {
+  const { user, refreshProfile } = useAuth();
   const [reports, setReports] = useState<any[]>([]);
   const [company, setCompany] = useState('');
   const [desc, setDesc] = useState('');
 
   useEffect(() => {
-    fetchReports();
-  }, []);
+    if (user) fetchReports();
+  }, [user]);
 
   const fetchReports = async () => {
     try {
-      const res = await axios.get('http://localhost:8000/community');
-      setReports(res.data);
+      const reportsRef = query(ref(db, 'scam_reports'), orderByChild('timestamp'), limitToLast(20));
+      const snapshot = await get(reportsRef);
+      if (snapshot.exists()) {
+        const data = snapshot.val();
+        const reportsList = Object.keys(data).map(key => ({
+          id: key,
+          ...data[key]
+        })).sort((a: any, b: any) => b.timestamp - a.timestamp);
+        setReports(reportsList);
+      } else {
+        setReports([]);
+      }
     } catch(e) { console.error(e); }
   }
 
@@ -24,11 +37,30 @@ export default function CommunityReports() {
     e.preventDefault();
     if(!company || !desc) return;
     try {
-        await axios.post('http://localhost:8000/report-scam', {
-        company_name: company,
-        description: desc,
-        reporter_email: 'anonymous@vishwas.com'
+        const newReportRef = push(ref(db, 'scam_reports'));
+        await set(newReportRef, {
+          company_name: company,
+          description: desc,
+          reporter_email: user?.email || 'anonymous@vishwas.com',
+          firebase_uid: user?.uid || null,
+          timestamp: Date.now()
         });
+        
+        if (user) {
+          const userRef = ref(db, `users/${user.uid}`);
+          await runTransaction(userRef, (profile) => {
+            if (profile) {
+              profile.xp_points = (profile.xp_points || 0) + 50;
+              profile.level = 1 + Math.floor(profile.xp_points / 100);
+              if (!profile.badges) profile.badges = [];
+              if (!profile.badges.includes("Scam Hunter")) {
+                profile.badges.push("Scam Hunter");
+              }
+            }
+            return profile;
+          });
+          await refreshProfile();
+        }
         setCompany('');
         setDesc('');
         fetchReports();

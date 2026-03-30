@@ -209,9 +209,25 @@ async def generate_company_intelligence(company_name: str, wiki_summary: str) ->
             "summary": wiki_summary or "No API Keys provided for deep AI profiling."
         }
 
+    # RAG (Retrieval-Augmented Generation) for strict MCA accuracy
+    verified_mca_context = ""
+    try:
+        import json
+        with open("mca_dataset.json", "r") as f:
+            mca_db = json.load(f)
+            
+        company_lower = company_name.lower()
+        for key, data in mca_db.items():
+            if key in company_lower:
+                verified_mca_context = f"\nCRITICAL VERIFIED DATABASE MATCH: The company '{company_name}' is in our verified registry. You MUST use this exact data: Legal Name: {data['legal_name']}, CIN: {data['cin']}, Status: {data['status']}, HQ: {data['hq']}.\n"
+                break
+    except Exception as e:
+        print(f"RAG DB Error: {e}")
+
     prompt = f"""
     You are an OSINT Corporate Intelligence AI. Analyze the company '{company_name}'.
     Context from Wikipedia: {wiki_summary}
+    {verified_mca_context}
     
     Return a literal JSON document containing exactly these keys about the organization:
     - size: (e.g., 'Massive (300,000+ employees)', 'Startup')
