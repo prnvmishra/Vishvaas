@@ -1,18 +1,31 @@
-fastapi
-uvicorn[standard]
-pymupdf
-pytesseract
-Pillow
-openai
-python-multipart
-python-dotenv
-pydantic
-sqlalchemy
-wikipedia
-pdfplumber
-opencv-python-headless
-googlesearch-python
-duckduckgo-search
-spacy
-httpx
-pypdf2
+# VISHWAS Backend - Full Production Dependencies
+# Core Framework
+fastapi==0.104.1
+uvicorn[standard]==0.24.0
+python-multipart==0.0.6
+
+# Document Processing
+pymupdf==1.23.8
+pdfplumber==0.9.0
+PyPDF2==3.0.1
+pytesseract==0.3.10
+Pillow==10.0.1
+
+# Image Processing
+opencv-python-headless==4.8.1.78
+numpy==1.24.3
+
+# AI & NLP
+openai==1.3.5
+spacy==3.7.2
+httpx==0.25.2
+
+# Web Search & APIs
+googlesearch-python==1.2.3
+duckduckgo-search==3.9.3
+wikipedia==1.4.0
+
+# Database & ORM
+sqlalchemy==2.0.23
+python-dotenv==1.0.0
+pydantic==2.5.0
